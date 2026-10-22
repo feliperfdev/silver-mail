@@ -1,0 +1,7 @@
+# Segurança extra: qualquer credencial do Google fora do lugar esperado.
+client_secret*.json
+token.json
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
