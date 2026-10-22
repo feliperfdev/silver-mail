@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import 'api.dart';
-import 'pages/history_page.dart';
-import 'pages/overview_page.dart';
-import 'pages/senders_page.dart';
-import 'pages/unsubscribe_page.dart';
+import 'pages/history/history_page.dart';
+import 'pages/overview/overview_page.dart';
+import 'pages/senders/senders_page.dart';
+import 'pages/unsubscribe/unsubscribe_page.dart';
 import 'widgets/job_banner.dart';
 
 void main() => runApp(const SilverMailApp());

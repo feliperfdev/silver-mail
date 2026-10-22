@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../api.dart';
-import '../format.dart';
-import '../widgets/action_preview.dart';
+import '../../api.dart';
+import '../../format.dart';
+import '../../widgets/action_preview/action_preview.dart';
+import 'selection_bar.dart';
+import 'sender_messages_sheet.dart';
+import 'sender_tile.dart';
 
 /// Ranking de remetentes com seleção e ações em massa.
 class SendersPage extends StatefulWidget {
@@ -94,6 +97,22 @@ class _SendersPageState extends State<SendersPage> {
     target: {'senders': _selected.toList()},
   );
 
+  Future<void> _showMessages(String email) async {
+    final res = await state.api.get(
+      '/api/senders/${Uri.encodeComponent(email)}/messages',
+    );
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (_) => SenderMessagesSheet(
+        email: email,
+        messages: (res['items'] as List).cast<Map<String, dynamic>>(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -151,11 +170,20 @@ class _SendersPageState extends State<SendersPage> {
             ],
           ),
         ),
-        if (_selected.isNotEmpty) _selectionBar(theme),
+        if (_selected.isNotEmpty)
+          SelectionBar(
+            count: _selected.length,
+            onTrash: state.jobRunning ? null : () => _run('trash'),
+            onDelete: state.jobRunning || !state.canDeletePermanently
+                ? null
+                : () => _run('delete'),
+            onClear: () => setState(_selected.clear),
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
           child: Text(
-            'Mostrando ${formatCount(_items.length)} de ${formatCount(_total)} remetentes',
+            'Mostrando ${formatCount(_items.length)} de '
+            '${formatCount(_total)} remetentes',
             style: theme.textTheme.bodySmall,
           ),
         ),
@@ -184,146 +212,21 @@ class _SendersPageState extends State<SendersPage> {
                             )
                           : const SizedBox.shrink();
                     }
-                    return _senderTile(context, _items[i]);
+                    final email = _items[i]['email'] as String;
+                    return SenderTile(
+                      key: ValueKey(email),
+                      sender: _items[i],
+                      selected: _selected.contains(email),
+                      onSelectedChanged: (v) => setState(
+                        () =>
+                            v ? _selected.add(email) : _selected.remove(email),
+                      ),
+                      onTap: () => _showMessages(email),
+                    );
                   },
                 ),
         ),
       ],
-    );
-  }
-
-  Widget _selectionBar(ThemeData theme) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text('${_selected.length} selecionado(s)'),
-          FilledButton.tonalIcon(
-            onPressed: state.jobRunning ? null : () => _run('trash'),
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Lixeira…'),
-          ),
-          OutlinedButton.icon(
-            onPressed: state.jobRunning || !state.canDeletePermanently
-                ? null
-                : () => _run('delete'),
-            icon: const Icon(Icons.delete_forever),
-            label: const Text('Apagar permanentemente…'),
-          ),
-          TextButton(
-            onPressed: () => setState(_selected.clear),
-            child: const Text('Limpar seleção'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _senderTile(BuildContext context, Map<String, dynamic> s) {
-    final email = s['email'] as String;
-    final name = s['name'] as String? ?? '';
-    final ratio = (s['unreadRatio'] as num?) ?? 0;
-    final scheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      child: ListTile(
-        leading: Checkbox(
-          value: _selected.contains(email),
-          onChanged: (v) => setState(
-            () => v == true ? _selected.add(email) : _selected.remove(email),
-          ),
-        ),
-        title: Text(
-          name.isEmpty ? email : name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          '${name.isEmpty ? '' : '$email · '}último em ${formatDate(s['lastMs'] as num?)}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Wrap(
-          spacing: 16,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            if (s['hasUnsubscribe'] == true)
-              const Tooltip(
-                message: 'Tem link de descadastro',
-                child: Icon(Icons.unsubscribe_outlined, size: 20),
-              ),
-            _metric('${formatCount(s['count'] as num)} e-mails', null),
-            _metric(formatBytes(s['totalSize'] as num), null),
-            _metric(
-              '${formatPercent(ratio)} não lidos',
-              ratio >= 0.9 ? scheme.error : null,
-            ),
-          ],
-        ),
-        onTap: () => _showMessages(context, email),
-      ),
-    );
-  }
-
-  Widget _metric(String text, Color? color) => SizedBox(
-    width: 110,
-    child: Text(
-      text,
-      textAlign: TextAlign.right,
-      style: TextStyle(color: color),
-    ),
-  );
-
-  Future<void> _showMessages(BuildContext context, String email) async {
-    final res = await state.api.get(
-      '/api/senders/${Uri.encodeComponent(email)}/messages',
-    );
-    if (!context.mounted) return;
-    final items = (res['items'] as List).cast<Map<String, dynamic>>();
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (_) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        builder: (context, controller) => ListView(
-          controller: controller,
-          children: [
-            ListTile(
-              title: Text(
-                email,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            for (final m in items)
-              ListTile(
-                dense: true,
-                leading: Icon(
-                  m['unread'] == true
-                      ? Icons.mark_email_unread_outlined
-                      : Icons.drafts_outlined,
-                ),
-                title: Text(
-                  (m['subject'] as String).isEmpty
-                      ? '(sem assunto)'
-                      : m['subject'] as String,
-                ),
-                subtitle: Text(
-                  '${formatDate(m['dateMs'] as num)} · ${formatBytes(m['size'] as num)}',
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }

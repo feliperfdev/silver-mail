@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../api.dart';
-import '../format.dart';
+import '../../api.dart';
+import '../../format.dart';
 
 /// Ações executadas, com opção de desfazer o que foi para a lixeira.
 class HistoryPage extends StatefulWidget {

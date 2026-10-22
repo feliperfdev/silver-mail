@@ -152,10 +152,21 @@ server/
   lib/src/database.dart       # SQLite: cache, histórico, status de descadastro
   lib/src/parsing.dart        # From, List-Unsubscribe e links no corpo
   lib/src/api.dart            # rotas HTTP + proteções do servidor local
-app/
-  lib/pages/                  # Visão geral, Remetentes, Descadastro, Histórico
-  lib/widgets/                # prévia de ações e barra de progresso
+app/lib/
+  pages/<tela>/               # uma pasta por tela: <tela>_page.dart + seus subwidgets
+    overview/                 # Visão geral: AccountCard, StatsGrid, SyncCard, CleanupCard…
+    senders/                  # Remetentes: SenderTile, SelectionBar, SenderMessagesSheet…
+    unsubscribe/              # Descadastro: UnsubscribeTile, UnsubscribeLinkButton
+    history/                  # Histórico
+  widgets/                    # widgets compartilhados entre telas
+    action_preview/           # fluxo de prévia + confirmação de ações em massa
+    job_banner.dart           # barra de progresso da tarefa atual
 ```
+
+Convenção do app: **um widget por arquivo**, sempre como classe
+(`StatelessWidget`/`StatefulWidget`), nunca como método `Widget _algo()`.
+Subwidgets ficam na pasta do widget que os usa; o que é usado por mais de uma
+tela vai para `widgets/`.
 
 ### Variáveis de ambiente
 
